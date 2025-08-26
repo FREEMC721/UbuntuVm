@@ -33,8 +33,8 @@ git clone https://github.com/FREEMC721/UbuntuVm
 cd UbuntuVm
 
 # Build the Docker image
-docker build -t ubuntu-vm .
+docker build -t dark-vm .
 
 # Run the container
 
-docker run --privileged -p 6080:6080 -p 2221:2222 -v $PWD/vmdata:/data ubuntu-vm
+docker run --privileged -p 6080:6080 -p 2221:2222 -v $PWD/vmdata:/data dark-vm
