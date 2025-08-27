@@ -27,12 +27,12 @@ RUN curl -L https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-
 # Write meta-data
 RUN echo "instance-id: ubuntu-vm\nlocal-hostname: dark-vm" > /cloud-init/meta-data
 
-# Write user-data with root login (password: root)
+# Write user-data with working root login and password 'root'
 RUN printf "#cloud-config\n\
 preserve_hostname: false\n\
 hostname: dark-vm\n\
 users:\n\
-  - name: root\n\
+  - name: dark\n\
     gecos: root\n\
     shell: /bin/bash\n\
     lock_passwd: false\n\
@@ -69,7 +69,7 @@ SEED="/opt/qemu/seed.iso"
 
 # Create disk if it doesn't exist
 if [ ! -f "$DISK" ]; then
-    echo "Creating VM disk..."
+    echo "🔄️ Creating VM disk..."
     qemu-img convert -f qcow2 -O raw "$IMG" "$DISK"
     qemu-img resize "$DISK" 50G
 fi
@@ -94,7 +94,7 @@ websockify --web=/novnc 6080 localhost:5900 &
 echo "================================================"
 echo " 🖥️  VNC: http://localhost:6080/vnc.html"
 echo " 🔐 SSH: ssh root@localhost -p 2222"
-echo " 🧾 Login: root / root"
+echo " 🧾 Login: dark / root"
 echo "================================================"
 
 # Wait for SSH port to be ready
@@ -104,9 +104,7 @@ for i in {1..30}; do
   sleep 2
 done
 
-# Run sshx.io to expose SSH
-echo "🚀 Starting sshx.io..."
-curl -sSf https://sshx.io/get | sh -s run ssh root@localhost -p 2222
+wait
 EOF
 
 RUN chmod +x /start.sh
