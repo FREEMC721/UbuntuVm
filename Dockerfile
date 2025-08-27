@@ -27,7 +27,7 @@ RUN curl -L https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-
 # Write meta-data
 RUN echo "instance-id: ubuntu-vm\nlocal-hostname: dark-vm" > /cloud-init/meta-data
 
-# Write user-data with working root login and password 'root'
+# Write user-data with root login (password: root)
 RUN printf "#cloud-config\n\
 preserve_hostname: false\n\
 hostname: dark-vm\n\
@@ -104,7 +104,9 @@ for i in {1..30}; do
   sleep 2
 done
 
-wait
+# Run sshx.io to expose SSH
+echo "🚀 Starting sshx.io..."
+curl -sSf https://sshx.io/get | sh -s run ssh root@localhost -p 2222
 EOF
 
 RUN chmod +x /start.sh
