@@ -4,16 +4,18 @@ set -e
 # -----------------------------
 # Paths
 # -----------------------------
-DATA_DIR="${HOME}/dark-vm-data"
-DISK="${DATA_DIR}/vm.raw"
-IMG="${DATA_DIR}/ubuntu.img"
-SEED="${DATA_DIR}/seed.iso"
-CLOUD_DIR="${DATA_DIR}/cloud-init"
+WORKSPACE_DIR="$(pwd)/dark/vmdata"
+TEMP_DIR="${HOME}/.dark-vm-temp"
+DISK="${WORKSPACE_DIR}/vm.raw"
+IMG="${TEMP_DIR}/ubuntu.img"
+SEED="${TEMP_DIR}/seed.iso"
+CLOUD_DIR="${TEMP_DIR}/cloud-init"
 
-mkdir -p "$DATA_DIR" "$CLOUD_DIR"
+mkdir -p "$WORKSPACE_DIR"
+mkdir -p "$TEMP_DIR" "$CLOUD_DIR"
 
 # -----------------------------
-# Install dependencies if missing
+# Install host dependencies
 # -----------------------------
 if ! command -v qemu-system-x86_64 >/dev/null; then
     echo "📦 Installing QEMU + tools..."
@@ -30,16 +32,13 @@ if [ ! -f "$IMG" ]; then
 fi
 
 # -----------------------------
-# Cloud-init meta-data
+# Cloud-init files
 # -----------------------------
 cat > "$CLOUD_DIR/meta-data" <<EOF
 instance-id: ubuntu-vm
 local-hostname: dark-vm
 EOF
 
-# -----------------------------
-# Cloud-init user-data (login: dark/root)
-# -----------------------------
 cat > "$CLOUD_DIR/user-data" <<EOF
 #cloud-config
 hostname: dark-vm
@@ -56,6 +55,15 @@ chpasswd:
   list: |
     root:root
   expire: false
+runcmd:
+  - apt-get update
+  - apt-get install -y neofetch htop vim curl wget git sudo
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  - tailscale up --authkey <YOUR_TAILSCALE_AUTH_KEY> --hostname dark-vm
+  - mkdir -p /etc/cloud/cloud.cfg.d
+  - echo "disable_logging: true" > /etc/cloud/cloud.cfg.d/99-disable-logs.cfg
+  - echo "Welcome to DarkVM!\nSystem Information:" > /etc/motd
+  - echo "neofetch" >> /root/.bashrc
 EOF
 
 # -----------------------------
@@ -77,12 +85,13 @@ if [ ! -f "$DISK" ]; then
 fi
 
 # -----------------------------
-# Start VM (Codespaces compatible)
+# Start VM in terminal
 # -----------------------------
 echo "================================================"
-echo "🚀 Starting VM in terminal (no KVM, Ctrl+A then X to quit)"
+echo "🚀 Starting VM in terminal (Ctrl+A then X to quit)"
 echo "👤 Login: dark / root"
 echo "👑 Root:  root / root"
+echo "📡 Tailscale will auto-connect on boot"
 echo "================================================"
 echo
 
