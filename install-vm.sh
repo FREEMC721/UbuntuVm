@@ -2,105 +2,32 @@
 set -e
 
 # -----------------------------
-# Paths
+# Update & install VPS tools
 # -----------------------------
-WORKSPACE_DIR="$(pwd)/dark/vmdata"
-TEMP_DIR="${HOME}/.dark-vm-temp"
-DISK="${WORKSPACE_DIR}/vm.raw"
-IMG="${TEMP_DIR}/ubuntu.img"
-SEED="${TEMP_DIR}/seed.iso"
-CLOUD_DIR="${TEMP_DIR}/cloud-init"
-
-mkdir -p "$WORKSPACE_DIR"
-mkdir -p "$TEMP_DIR" "$CLOUD_DIR"
+echo "📦 Updating system and installing VPS tools..."
+sudo apt-get update
+sudo apt-get install -y neofetch htop vim curl wget git sudo
 
 # -----------------------------
-# Install host dependencies
+# Clean MOTD and auto-run neofetch
 # -----------------------------
-if ! command -v qemu-system-x86_64 >/dev/null; then
-    echo "📦 Installing QEMU + tools..."
-    sudo apt-get update
-    sudo apt-get install -y qemu-system-x86 qemu-utils cloud-image-utils genisoimage curl
-fi
+echo "🖥️ Setting up VPS look..."
+echo "Welcome to DarkVM! System Information:" | sudo tee /etc/motd
+grep -qxF "neofetch" ~/.bashrc || echo "neofetch" >> ~/.bashrc
 
 # -----------------------------
-# Download Ubuntu cloud image
+# Install Tailscale
 # -----------------------------
-if [ ! -f "$IMG" ]; then
-    echo "⬇️ Downloading Ubuntu 22.04 cloud image..."
-    curl -L https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img -o "$IMG"
-fi
+echo "📡 Installing Tailscale..."
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --authkey tskey-auth-kkHUcZJrpL11CNTRL-Qkm49MqPcbUKJDkAmkyfbUVLNQgDNbzrB --hostname dark-vm
 
 # -----------------------------
-# Cloud-init files
-# -----------------------------
-cat > "$CLOUD_DIR/meta-data" <<EOF
-instance-id: ubuntu-vm
-local-hostname: dark-vm
-EOF
-
-cat > "$CLOUD_DIR/user-data" <<EOF
-#cloud-config
-hostname: dark-vm
-users:
-  - name: dark
-    gecos: root
-    shell: /bin/bash
-    lock_passwd: false
-    passwd: \$6\$abcd1234\$W6wzBuvyE.D1mBGAgQw2uvUO/honRrnAGjFhMXSk0LUbZosYtoHy1tUtYhKlALqIldOGPrYnhSrOfAknpm91i0
-    sudo: ALL=(ALL) NOPASSWD:ALL
-disable_root: false
-ssh_pwauth: true
-chpasswd:
-  list: |
-    root:root
-  expire: false
-runcmd:
-  - apt-get update
-  - apt-get install -y neofetch htop vim curl wget git sudo
-  - curl -fsSL https://tailscale.com/install.sh | sh
-  - tailscale up --authkey <YOUR_TAILSCALE_AUTH_KEY> --hostname dark-vm
-  - mkdir -p /etc/cloud/cloud.cfg.d
-  - echo "disable_logging: true" > /etc/cloud/cloud.cfg.d/99-disable-logs.cfg
-  - echo "Welcome to DarkVM!\nSystem Information:" > /etc/motd
-  - echo "neofetch" >> /root/.bashrc
-EOF
-
-# -----------------------------
-# Create cloud-init ISO
-# -----------------------------
-if [ ! -f "$SEED" ]; then
-    echo "💿 Creating cloud-init ISO..."
-    genisoimage -output "$SEED" -volid cidata -joliet -rock \
-        "$CLOUD_DIR/user-data" "$CLOUD_DIR/meta-data" >/dev/null 2>&1
-fi
-
-# -----------------------------
-# Create VM disk
-# -----------------------------
-if [ ! -f "$DISK" ]; then
-    echo "🔄 Creating VM disk..."
-    qemu-img convert -f qcow2 -O raw "$IMG" "$DISK"
-    qemu-img resize "$DISK" 20G
-fi
-
-# -----------------------------
-# Start VM in terminal
+# Summary
 # -----------------------------
 echo "================================================"
-echo "🚀 Starting VM in terminal (Ctrl+A then X to quit)"
-echo "👤 Login: dark / root"
-echo "👑 Root:  root / root"
-echo "📡 Tailscale will auto-connect on boot"
+echo "✅ VPS-like Ubuntu environment setup complete!"
+echo "👤 Login: your Codespace user"
+echo "🖥️ VPS tools installed: neofetch, htop, vim, curl, wget, git"
+echo "📡 Tailscale is running; check your IP with: tailscale ip -4"
 echo "================================================"
-echo
-
-exec qemu-system-x86_64 \
-    -cpu qemu64 \
-    -smp 2 \
-    -m 2048 \
-    -drive file="$DISK",format=raw,if=virtio \
-    -drive file="$SEED",format=raw,if=virtio \
-    -net nic -net user \
-    -vga std \
-    -nographic
